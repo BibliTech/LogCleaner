@@ -10,8 +10,7 @@ namespace BibliTech.FileCleaner.Core
     public static class CoreUtils
     {
 
-        public static string AssemblyFolder { get; } =
-            Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+        public static string AssemblyFolder { get; } = AppDomain.CurrentDomain.BaseDirectory;
 
     }
 

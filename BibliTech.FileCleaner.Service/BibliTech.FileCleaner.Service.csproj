@@ -3,6 +3,8 @@
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <UserSecretsId>dotnet-BibliTech.FileCleaner.Service-42F6F285-9733-438A-A7CD-9DE12FCE1D95</UserSecretsId>
+    <AssemblyName>BibliCleaner</AssemblyName>
+    <ApplicationIcon>logo.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -14,9 +16,16 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="3.1.3" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="3.1.3" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\BibliTech.FileCleaner.Core\BibliTech.FileCleaner.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="ServiceScripts.ps1">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 </Project>
