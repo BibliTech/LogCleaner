@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace BibliTech.FileCleaner
+namespace BibliTech.FileCleaner.Service
 {
     class Program
     {
