@@ -1,12 +1,22 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk.Worker">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
+    <UserSecretsId>dotnet-BibliTech.FileCleaner.Service-42F6F285-9733-438A-A7CD-9DE12FCE1D95</UserSecretsId>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="logs\**" />
+    <Content Remove="logs\**" />
+    <EmbeddedResource Remove="logs\**" />
+    <None Remove="logs\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="3.1.3" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\BibliTech.FileCleaner.Core\BibliTech.FileCleaner.Core.csproj" />
   </ItemGroup>
-
 </Project>

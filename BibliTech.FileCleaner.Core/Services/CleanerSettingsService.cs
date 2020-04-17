@@ -37,7 +37,7 @@ namespace BibliTech.FileCleaner.Core.Services
                 {
                     if (this.instanceSettings == null)
                     {
-                        if (settings == null)
+                        if (settings == null || settings.ReadSettingsEveryRun)
                         {
 
                             this.logger.LogInformation("Loading settings.");

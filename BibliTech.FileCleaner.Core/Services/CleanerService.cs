@@ -12,7 +12,7 @@ namespace BibliTech.FileCleaner.Core.Services
 {
     public interface ICleanerService
     {
-        Task CleanAsync();
+        Task<int> CleanAsync();
     }
 
     internal class CleanerService : ICleanerService
@@ -25,7 +25,7 @@ namespace BibliTech.FileCleaner.Core.Services
             this.logger = logger;
         }
 
-        public async Task CleanAsync()
+        public async Task<int> CleanAsync()
         {
             this.logger.LogInformation($"Entering {nameof(this.CleanAsync)}.");
 
@@ -38,6 +38,8 @@ namespace BibliTech.FileCleaner.Core.Services
             }
 
             await Task.WhenAll(tasks);
+
+            return settings.Interval;
         }
 
         void Clean(CleanerItem item)
