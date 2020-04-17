@@ -17,9 +17,9 @@ namespace BibliTech.FileCleaner.Core.Services
 
     internal class CleanerService : ICleanerService
     {
-        readonly ISettingsService settingsService;
+        readonly ICleanerSettingsService settingsService;
         readonly ILogger<CleanerService> logger;
-        public CleanerService(ISettingsService settingsService, ILogger<CleanerService> logger)
+        public CleanerService(ICleanerSettingsService settingsService, ILogger<CleanerService> logger)
         {
             this.settingsService = settingsService;
             this.logger = logger;
@@ -42,6 +42,18 @@ namespace BibliTech.FileCleaner.Core.Services
 
         void Clean(CleanerItem item)
         {
+            if (string.IsNullOrEmpty(item.Folder))
+            {
+                this.logger.LogInformation($"Skipping Empty Folder item.");
+                return;
+            }
+
+            if (item.Lifetime == int.MaxValue)
+            {
+                this.logger.LogInformation($"Skipping {item.Folder} because Lifetime is not set.");
+                return;
+            }
+
             this.logger.LogInformation($"Cleaning {item.Folder}.");
 
             var now = DateTime.UtcNow;

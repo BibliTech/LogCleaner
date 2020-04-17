@@ -10,20 +10,20 @@ using System.Threading;
 
 namespace BibliTech.FileCleaner.Core.Services
 {
-    public interface ISettingsService
+    public interface ICleanerSettingsService
     {
         CleanerSettings Settings { get; }
     }
 
-    internal class SettingsService : ISettingsService
+    internal class CleanerSettingsService : ICleanerSettingsService
     {
         const string AppSettingsFileName = "appsettings.json";
 
         static readonly SemaphoreSlim locker = new SemaphoreSlim(1, 1);
         static CleanerSettings settings;
-        readonly ILogger<SettingsService> logger;
+        readonly ILogger<CleanerSettingsService> logger;
         CleanerSettings instanceSettings;
-        public SettingsService(ILogger<SettingsService> logger)
+        public CleanerSettingsService(ILogger<CleanerSettingsService> logger)
         {
             this.logger = logger;
         }
