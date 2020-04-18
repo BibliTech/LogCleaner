@@ -41,6 +41,7 @@ namespace BibliTech.FileCleaner.Service
                     try
                     {
                         this.logger.LogError(ex, "Error while cleaning");
+                        await Task.Delay(60000);
                     }
                     catch (Exception) { }
                 }

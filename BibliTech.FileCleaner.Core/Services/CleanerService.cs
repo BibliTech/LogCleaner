@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Principal;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -27,19 +28,28 @@ namespace BibliTech.FileCleaner.Core.Services
 
         public async Task<int> CleanAsync()
         {
-            this.logger.LogInformation($"Entering {nameof(this.CleanAsync)}.");
-
-            var settings = this.settingsService.Settings;
-
-            var tasks = new List<Task>();
-            foreach (var item in settings.Items)
+            int result = 60;
+            try
             {
-                tasks.Add(Task.Run(() => this.Clean(item)));
+                this.logger.LogInformation($"Entering {nameof(this.CleanAsync)} with account ${CoreUtils.RunningAccount.Value}.");
+
+                var settings = this.settingsService.Settings;
+                result = settings.Interval;
+
+                var tasks = new List<Task>();
+                foreach (var item in settings.Items)
+                {
+                    tasks.Add(Task.Run(() => this.Clean(item)));
+                }
+
+                await Task.WhenAll(tasks);
+            }
+            catch (Exception ex)
+            {
+                this.logger.LogError(ex, ex.Message);
             }
 
-            await Task.WhenAll(tasks);
-
-            return settings.Interval;
+            return result;
         }
 
         void Clean(CleanerItem item)
@@ -62,19 +72,45 @@ namespace BibliTech.FileCleaner.Core.Services
             var minModTime = now.AddSeconds(-item.Lifetime);
 
             var folder = new DirectoryInfo(item.Folder);
-            this.ScanFolder(folder, minModTime, item.DeleteEmptySubfolders, true);
+            try
+            {
+                this.ScanFolder(folder, minModTime, item.DeleteEmptySubfolders, true);
+            }
+            catch (IOException)
+            {
+                try
+                {
+                    this.SetOwner(folder);
+                    this.ScanFolder(folder, minModTime, item.DeleteEmptySubfolders, true);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.LogError(ex, ex.Message);
+                }
+            }
         }
 
         void ScanFolder(DirectoryInfo folder, DateTime minModTime, bool deleteEmptyFolder, bool isTop)
         {
+            if (folder.FullName.Length > 255)
+            {
+                folder = new DirectoryInfo(@"\\?\" + folder.FullName);
+            }
+
             this.logger.LogDebug($"Scanning {folder.FullName}");
 
             foreach (var file in folder.EnumerateFiles())
             {
+                var usingFile = file;
+                if (usingFile.FullName.Length > 255)
+                {
+                    usingFile = new FileInfo(@"\\?\" + file.FullName);
+                }
+
                 if (file.LastWriteTimeUtc < minModTime)
                 {
-                    this.logger.LogDebug($"Deleting {file.FullName}");
-                    file.Delete();
+                    this.logger.LogDebug($"Deleting {usingFile.FullName}");
+                    this.Delete(usingFile);
                 }
             }
 
@@ -86,7 +122,71 @@ namespace BibliTech.FileCleaner.Core.Services
             if (deleteEmptyFolder && !isTop && !folder.EnumerateFileSystemInfos().Any())
             {
                 this.logger.LogDebug($"Empty Folder. Deleting {folder.FullName}");
+                this.Delete(folder);
+            }
+        }
+
+        void SetOwner(DirectoryInfo folder)
+        {
+            var acl = folder.GetAccessControl(System.Security.AccessControl.AccessControlSections.All);
+
+            acl.SetOwner(CoreUtils.RunningAccount);
+            acl.AddAccessRule(new System.Security.AccessControl.FileSystemAccessRule(
+                CoreUtils.RunningUser, System.Security.AccessControl.FileSystemRights.FullControl, System.Security.AccessControl.AccessControlType.Allow));
+
+            folder.SetAccessControl(acl);
+        }
+
+        void SetOwner(FileInfo file)
+        {
+            var acl = file.GetAccessControl(System.Security.AccessControl.AccessControlSections.All);
+
+            acl.SetOwner(CoreUtils.RunningAccount);
+            acl.AddAccessRule(new System.Security.AccessControl.FileSystemAccessRule(
+                CoreUtils.RunningUser, System.Security.AccessControl.FileSystemRights.FullControl, System.Security.AccessControl.AccessControlType.Allow));
+
+            file.SetAccessControl(acl);
+        }
+
+        void Delete(FileInfo file)
+        {
+            try
+            {
+                file.Delete();
+            }
+            catch (Exception)
+            {
+                try
+                {
+                    this.SetOwner(file);
+                    file.Attributes = FileAttributes.Normal;
+                    file.Delete();
+                }
+                catch (Exception ex)
+                {
+                    this.logger.LogError(ex, file.FullName);
+                }
+            }
+        }
+
+        void Delete(DirectoryInfo folder)
+        {
+            try
+            {
                 folder.Delete();
+            }
+            catch (Exception)
+            {
+                try
+                {
+                    this.SetOwner(folder);
+                    folder.Attributes = FileAttributes.Normal;
+                    folder.Delete();
+                }
+                catch (Exception ex)
+                {
+                    this.logger.LogError(ex, folder.FullName);
+                }
             }
         }
 
