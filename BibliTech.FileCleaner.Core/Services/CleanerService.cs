@@ -18,6 +18,8 @@ namespace BibliTech.FileCleaner.Core.Services
 
     internal class CleanerService : ICleanerService
     {
+        const string LongFileNamePrefix = @"\\?\";
+
         readonly ICleanerSettingsService settingsService;
         readonly ILogger<CleanerService> logger;
         public CleanerService(ICleanerSettingsService settingsService, ILogger<CleanerService> logger)
@@ -92,38 +94,49 @@ namespace BibliTech.FileCleaner.Core.Services
 
         void ScanFolder(DirectoryInfo folder, DateTime minModTime, bool deleteEmptyFolder, bool isTop)
         {
-            if (folder.FullName.Length > 255)
+            try
             {
-                folder = new DirectoryInfo(@"\\?\" + folder.FullName);
-            }
-
-            this.logger.LogDebug($"Scanning {folder.FullName}");
-
-            foreach (var file in folder.EnumerateFiles())
-            {
-                var usingFile = file;
-                if (usingFile.FullName.Length > 255)
+                var folderName = folder.FullName;
+                if (folderName.Length > 255 && !folderName.StartsWith(""))
                 {
-                    usingFile = new FileInfo(@"\\?\" + file.FullName);
+                    folderName = LongFileNamePrefix + folderName;
+                    folder = new DirectoryInfo(folderName);
                 }
 
-                if (file.LastWriteTimeUtc < minModTime)
+                this.logger.LogDebug($"Scanning {folder.FullName}");
+
+                foreach (var file in folder.EnumerateFiles())
                 {
-                    this.logger.LogDebug($"Deleting {usingFile.FullName}");
-                    this.Delete(usingFile);
+                    var usingFile = file;
+                    var fileName = usingFile.FullName;
+                    if (fileName.Length > 255 && !fileName.StartsWith(LongFileNamePrefix))
+                    {
+                        fileName = LongFileNamePrefix + fileName;
+                        usingFile = new FileInfo(fileName);
+                    }
+
+                    if (file.LastWriteTimeUtc < minModTime)
+                    {
+                        this.logger.LogDebug($"Deleting {usingFile.FullName}");
+                        this.Delete(usingFile);
+                    }
+                }
+
+                foreach (var subFolder in folder.EnumerateDirectories())
+                {
+                    this.ScanFolder(subFolder, minModTime, deleteEmptyFolder, false);
+                }
+
+                if (deleteEmptyFolder && !isTop && !folder.EnumerateFileSystemInfos().Any())
+                {
+                    this.logger.LogDebug($"Empty Folder. Deleting {folder.FullName}");
+                    this.Delete(folder);
                 }
             }
-
-            foreach (var subFolder in folder.EnumerateDirectories())
+            catch (Exception ex)
             {
-                this.ScanFolder(subFolder, minModTime, deleteEmptyFolder, false);
-            }
-
-            if (deleteEmptyFolder && !isTop && !folder.EnumerateFileSystemInfos().Any())
-            {
-                this.logger.LogDebug($"Empty Folder. Deleting {folder.FullName}");
-                this.Delete(folder);
-            }
+                this.logger.LogError(ex, ex.Message);
+            }            
         }
 
         void SetOwner(DirectoryInfo folder)
@@ -139,6 +152,12 @@ namespace BibliTech.FileCleaner.Core.Services
 
         void SetOwner(FileInfo file)
         {
+            // Remove long filename from ACL: the library already handles that
+            if (file.FullName.StartsWith(LongFileNamePrefix))
+            {
+                file = new FileInfo(file.FullName.Substring(LongFileNamePrefix.Length));
+            }
+
             var acl = file.GetAccessControl(System.Security.AccessControl.AccessControlSections.All);
 
             acl.SetOwner(CoreUtils.RunningAccount);
